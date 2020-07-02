@@ -163,6 +163,10 @@ app.layout = html.Div([
     DataTable(
         id='table',
         merge_duplicate_headers=True,
+        style_header=dict(
+            backgroundColor='rgb(230, 230, 230)',
+            fontWeight='bold',
+        ),
     ),
 ])
 
