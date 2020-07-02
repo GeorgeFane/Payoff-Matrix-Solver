@@ -129,7 +129,7 @@ def getTable(solutions):
     return getColumns(solutions), getData(solutions)
 
 app.layout = html.Div([
-    html.H1('General Payoff Matrix Solver'),
+    html.H1('Payoff Matrix Solver'),
     html.H3('This app can solve payoff matrices with any number of players and strategies'),
     
     html.Label('Number of Players: '),
