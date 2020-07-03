@@ -133,11 +133,11 @@ app.layout = html.Div([
     html.H3('This app can solve payoff matrices with any number of players and strategies'),
     
     html.Label('Number of Players: '),
-    dcc.Input(id='numPlayers', type='number', value=0),    
+    dcc.Input(id='numPlayers', type='number'),    
     html.Br(),
     
     html.Label('Number of Strategies per Player: '),
-    dcc.Input(id='numStrats', type='number', value=0), 
+    dcc.Input(id='numStrats', type='number'), 
     html.Br(),
     
     html.Div(id='inputs'), 
