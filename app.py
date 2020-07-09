@@ -1,22 +1,11 @@
-import dash
+from dash import Dash
 import dash_core_components as dcc
 import dash_html_components as html
 
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 from dash_table import DataTable
 
-########### Initiate the app
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-server = app.server
-
-########### Set up the layout
-import dash
-import dash_core_components as dcc
-import dash_html_components as html
-
-from dash.dependencies import Input, Output
-from dash_table import DataTable
+import json
 
 from random import sample
 edge=lambda n, m: n*m**n
@@ -29,28 +18,22 @@ toList = lambda string: list(map(int, string.split()))
 
 group=lambda lis, size: [lis[i*size: (i+1)*size] for i in range(len(lis)//size)]
 
-def shape(payoffs, numPlayers, numStrats):
-    grouped=group(payoffs, numPlayers)
-    for i in range(numPlayers-1):
-        grouped=group(grouped, numStrats)
-    return grouped
-
-def toBase(n):
+def toBase(n, numPlayers, numStrats):
     digits = []
     while n:
         digits.append(int(n % numStrats))
         n //= numStrats
     return (numPlayers-len(digits))*[0]+digits[::-1]
 
-getTensor = lambda lis: {tuple(toBase(i)): x for i, x in enumerate(lis)}
+getTensor = lambda lis, numPlayers, numStrats: {str(toBase(i, numPlayers, numStrats)): x for i, x in enumerate(lis)}
+
+unstringKeys = lambda dic: {tuple(json.loads(key)): value for key, value in dic.items()}
 
 getZeroes=lambda tensor, i: {key: value for key, value in tensor.items() if key[i]==0}
 
 ignore=lambda lis, j: [x for i, x in enumerate(lis) if i!=j]
 
 getSimilar=lambda tensor, cord, i: {key: value for key, value in tensor.items() if ignore(key, i)==ignore(cord, i)}
-
-getMax=lambda similar, ind: sorted(similar.items(), key=lambda x: x[1][ind])[-1][0]
 
 def getMax(similar, ind):
     maxVal=-1
@@ -70,42 +53,38 @@ def getLocals(tensor, zeroes, ind):
         localMax.append(getMax(similar, ind))
     return localMax
 
-def getAllLocals(tensor, numPlayers):
+def getAllLocals(tensor):
     allLocals=[]
-    for i in range(numPlayers):
+    length=len(list(tensor.keys())[0])
+    for i in range(length):
         zeroes=getZeroes(tensor, i)
         allLocals+=getLocals(tensor, zeroes, i)
     return allLocals
 
-def getFreqs(lis):
-    dic={}
-    for ele in lis:
-        if ele not in dic:
-            dic[ele]=1
-        else:
-            dic[ele]+=1
-    return dic
+getFreqs=lambda lis: {key: lis.count(key) for key in set(lis)}
 
-def getAnswers(tensor, freqs):
-    cords=[key for key, value in freqs.items() if value==numPlayers]
-    return {cord: tensor[cord] for cord in cords}
+getCords = lambda freqs: [key for key, value in freqs.items() if value==len(key)]
 
-def compute(grouped):
-    tensor=getTensor(grouped)
-    allLocals=getAllLocals(tensor, numPlayers)
+getPairs = lambda tensor, cords: {key: tensor[key] for key in cords}
+
+def compute(tensor):
+    allLocals=getAllLocals(tensor)
     freqs=getFreqs(allLocals)
-    return getAnswers(tensor, freqs)
+    cords=getCords(freqs)
+    return getPairs(tensor, cords)
 
-def getNameList(solutions):
-    nameList=[['', 'Player']]
+#DIVIDER BETWEEN BACKEND AND FRONTEND
+
+def getNames(solutions):
+    names=[['', 'Player']]
     for i, solution in enumerate(solutions):
-        nameList.append([f'Solution {i}', 'Strategy'])
-        nameList.append([f'Solution {i}', 'Payoff'])
-    return nameList
+        names.append([f'Solution {i}', 'Strategy'])
+        names.append([f'Solution {i}', 'Payoff'])
+    return names
 
 def getColumns(solutions):
-    nameList=getNameList(solutions)
-    return [dict(name=name, id=str(i)) for i, name in enumerate(nameList)]
+    names=getNames(solutions)
+    return [dict(name=name, id=str(i)) for i, name in enumerate(names)]
 
 def flatten(solutions):
     grid=[]
@@ -126,51 +105,53 @@ def getData(solutions):
     return [{str(i): x for i, x in enumerate(row)} for row in values]
 
 def getTable(solutions):
-    return getColumns(solutions), getData(solutions)
+    if len(solutions)>0:
+        return getColumns(solutions), getData(solutions)
+    else:
+        return [dict(name='No Solutions', id='0')], []
 
-app.layout = html.Div([
+app = Dash(__name__)
+server = app.server
+
+app.layout = html.Div([    
     html.H1('Payoff Matrix Solver'),
     html.H3('This app can solve payoff matrices with any number of players and strategies'),
-    
+
     html.Label('Number of Players: '),
     dcc.Input(id='numPlayers', type='number'),    
     html.Br(),
-    
+
     html.Label('Number of Strategies per Player: '),
     dcc.Input(id='numStrats', type='number'), 
+
+    html.Div(id='inputs', style={'display': 'none'}), 
     html.Br(),
-    
-    html.Div(id='inputs'), 
     html.Br(),
-    
+
     html.Button('Generate Random Payoffs', id='random'), 
-    
+
     html.Label(' or '),  
-    
+
     html.Label('Input Payoffs: '),
     dcc.Input(id='payoffString', value=''),    
     html.Br(),
-    
-    html.Div(id='payoffs'), 
+
+    html.Div(id='payoffs'),  
     html.Br(),
-    
-    html.Button('Solve', id='solve'), 
-    html.Br(), 
-    
+
     html.Div(id='solution'), 
     html.Br(),
-    
+
     DataTable(
         id='table',
         merge_duplicate_headers=True,
         style_header=dict(
             backgroundColor='rgb(230, 230, 230)',
             fontWeight='bold',
+            textAlign='left',
         ),
-    ),
-])
-
-numPlayers, numStrats = 1, 1
+    ),      
+], style={'columnCount': 1})
 
 @app.callback(
     [
@@ -181,15 +162,10 @@ numPlayers, numStrats = 1, 1
         Input('numStrats', 'value'),
     ]
 )
-def storeInputs(p, s):
-    global numPlayers, numStrats
-    numPlayers, numStrats = p, s
-    
+def storeInputs(numPlayers, numStrats):
     return (
-        f'{numPlayers} players, {numStrats} strategies each',
+        json.dumps([numPlayers, numStrats]),
     )
-
-grouped=1
 
 @app.callback(
     [
@@ -198,55 +174,50 @@ grouped=1
     [
         Input('random', 'n_clicks'),
         Input('payoffString', 'value'),
-    ]
+    ],
+    [        
+        State('inputs', 'children'),
+    ],
 )
-def showPayoffs(clicks, payoffString):  
+def showPayoffs(clicks, payoffString, inputs):  
+    numPlayers, numStrats = json.loads(inputs)
+    
     if payoffString=='':
         payoffs=genPayoffs(numPlayers, numStrats)
     else:
         payoffs=toList(payoffString)
     
-    global grouped
-    grouped=group(payoffs, numPlayers)
-    
     edges=edge(numPlayers, numStrats)
     if len(payoffs)==edges:
-        rtn=str(shape(payoffs, numPlayers, numStrats))
+        grouped=group(payoffs, numPlayers)
+        tensor=getTensor(grouped, numPlayers, numStrats)
+        rtn=json.dumps(tensor)
     else:
         rtn=f'Incorrect number of payoffs. Should have {edges}.'
-    
+        
     return (
         rtn,
     )
 
-solutions=1
-
 @app.callback(
     [
-        Output('solution', 'children'),
         Output('table', 'columns'),
         Output('table', 'data'),
     ],
     [
-        Input('solve', 'n_clicks'),
-    ]
+        Input('payoffs', 'children'),
+    ],
 )
-def showSolution(clicks):
-    global solutions
-    solutions=compute(grouped)
+def showSolution(payoffs):
+    tensor=unstringKeys(json.loads(payoffs))
+    solutions=compute(tensor)
     
-    string='No Solutions'
-    columns, data = [], []
-    
-    if len(solutions)>0:
-        string=str(solutions)        
-        columns, data = getTable(solutions)
+    columns, data = getTable(solutions)
     
     return (
-        string,
         columns,
         data,
     )
-
+	
 if __name__ == '__main__':
     app.run_server()
