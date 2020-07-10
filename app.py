@@ -113,45 +113,60 @@ def getTable(solutions):
 app = Dash(__name__)
 server = app.server
 
-app.layout = html.Div([    
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+app = JupyterDash(__name__)#, external_stylesheets=external_stylesheets)
+
+app.layout = html.Div([
     html.H1('Payoff Matrix Solver'),
     html.H3('This app can solve payoff matrices with any number of players and strategies'),
+    
+    html.Div([
+        html.Label('Number of Players: '),
+        dcc.Input(id='numPlayers', type='number'),    
+        html.Br(),
 
-    html.Label('Number of Players: '),
-    dcc.Input(id='numPlayers', type='number'),    
-    html.Br(),
+        html.Label('Number of Strategies: '),
+        dcc.Input(id='numStrats', type='number'), 
 
-    html.Label('Number of Strategies per Player: '),
-    dcc.Input(id='numStrats', type='number'), 
+        html.Div(id='inputs', style={'display': 'none'}), 
+        html.Br(),
+        html.Br(),
 
-    html.Div(id='inputs', style={'display': 'none'}), 
-    html.Br(),
-    html.Br(),
+        html.Button('Generate Random Payoffs', id='random'), 
+        html.Br(),
 
-    html.Button('Generate Random Payoffs', id='random'), 
+        html.Label('or Input Payoffs: '),
+        dcc.Input(id='payoffString', value=''),    
+        html.Br(),
+        html.Br(),
 
-    html.Label(' or '),  
+        html.Div(id='payoffs'),  
+        html.Br(),
+    ], 
+        style=dict(
+            width='49%',
+            display='inline-block',
+        )
+    ),
 
-    html.Label('Input Payoffs: '),
-    dcc.Input(id='payoffString', value=''),    
-    html.Br(),
-
-    html.Div(id='payoffs'),  
-    html.Br(),
-
-    html.Div(id='solution'), 
-    html.Br(),
-
-    DataTable(
-        id='table',
-        merge_duplicate_headers=True,
-        style_header=dict(
-            backgroundColor='rgb(230, 230, 230)',
-            fontWeight='bold',
-            textAlign='left',
-        ),
-    ),      
-], style={'columnCount': 1})
+    html.Div([
+        DataTable(
+            id='table',
+            merge_duplicate_headers=True,
+            style_header=dict(
+                backgroundColor='rgb(230, 230, 230)',
+                fontWeight='bold',
+                textAlign='left',
+            ),
+        ), 
+    ], 
+        style=dict(
+            width='49%',
+            display='inline-block',
+            verticalAlign='top',
+        )
+    ),
+])
 
 @app.callback(
     [
