@@ -113,9 +113,6 @@ def getTable(solutions):
 app = Dash(__name__)
 server = app.server
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-app = JupyterDash(__name__)#, external_stylesheets=external_stylesheets)
-
 app.layout = html.Div([
     html.H1('Payoff Matrix Solver'),
     html.H3('This app can solve payoff matrices with any number of players and strategies'),
